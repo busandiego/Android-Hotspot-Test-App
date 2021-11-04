@@ -199,6 +199,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
             R.id.client_btn -> {
                 getClientList()
+                // 리스트 초기화 ->>>>
+                /* val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
+                mainAdapter = MainAdapter(list, this)
+                recyclerView.adapter = mainAdapter
+                recyclerView.layoutManager = LinearLayoutManager(this@MainActivity) */
                 mainAdapter.notifyDataSetChanged()
             }
         }
