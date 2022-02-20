@@ -17,6 +17,7 @@ import com.mx7.test2.hotspotmanager.WIFI_AP_STATE;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 public class WifiApManager {
     private final WifiManager mWifiManager;
     private Context context;
+    private static final String TAG = "WifiApManager";
 
     public WifiApManager(Context context) {
         this.context = context;
@@ -158,32 +160,92 @@ public class WifiApManager {
                 BufferedReader br = null;
                 final ArrayList<ClientScanResult> result = new ArrayList<ClientScanResult>();
 
-                try {
-                    br = new BufferedReader(new FileReader("/proc/net/arp"));
-                    String line;
-                    while ((line = br.readLine()) != null) {
-                        String[] splitted = line.split(" +");
 
-                        if ((splitted != null) && (splitted.length >= 4)) {
-                            // Basic sanity check
-                            String mac = splitted[3];
+                // if API 29(Q) over, can not access "/proc/net/arp"
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    try {
+                        Process ipProc = Runtime.getRuntime().exec("ip neigh show");
+                        ipProc.waitFor();
+                        if (ipProc.exitValue() != 0) {
+                            throw new Exception("Unable to access ARP entries");
+                        }
 
-                            if (mac.matches("..:..:..:..:..:..")) {
-                                boolean isReachable = InetAddress.getByName(splitted[0]).isReachable(reachableTimeout);
+                        br = new BufferedReader(new InputStreamReader(ipProc.getInputStream(), "UTF-8"));
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            String[] neighborLine = line.split("\\s+");
+                            if (neighborLine.length <= 4) {
+                                continue;
+                            }
+                            String ip = neighborLine[0];
+                            final String hwAddr = neighborLine[4];
 
-                                if (!onlyReachables || isReachable) {
-                                    result.add(new ClientScanResult(splitted[0], splitted[3], splitted[5], isReachable));
+                            InetAddress addr = InetAddress.getByName(ip);
+                            if (addr.isLinkLocalAddress() || addr.isLoopbackAddress()) {
+                                continue;
+                            }
+                            String macAddress = neighborLine[4];
+                            String state = neighborLine[neighborLine.length - 1];
+                            String device = neighborLine[1];
+
+                            Log.d(TAG, "macAddress>>> " + macAddress);
+                            Log.d(TAG, "state >>> " + state);
+                            Log.d(TAG, "hwAddr >>> " + hwAddr);
+                            Log.d(TAG, "addr >>> " + addr);
+                            Log.d(TAG, "ip >>> " + ip);
+
+                            // additional code
+                            boolean isReachable = InetAddress.getByName(ip).isReachable(reachableTimeout);
+
+                            if (!onlyReachables || isReachable) {
+                                result.add(new ClientScanResult(ip, hwAddr, device, isReachable));
+                            }
+
+                            /*if (!NEIGHBOR_FAILED.equals(state) && !NEIGHBOR_INCOMPLETE.equals(state)) {
+                                boolean isReachable = false;
+                                try {
+                                    isReachable = InetAddress.getByName(ip).isReachable(5000);
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                if (isReachable) {
+                                    result.add(new WifiClient(ip, hwAddr));
+                                }
+                            }*/
+                        }
+                    } catch(Exception e) {
+                        Log.e(this.getClass().toString(), e.getMessage());
+                    }
+
+                // below 29(Q) api
+                } else {
+                    try {
+                        br = new BufferedReader(new FileReader("/proc/net/arp"));
+                        String line;
+                        while ((line = br.readLine()) != null) {
+                            String[] splitted = line.split(" +");
+
+                            if ((splitted != null) && (splitted.length >= 4)) {
+                                // Basic sanity check
+                                String mac = splitted[3];
+
+                                if (mac.matches("..:..:..:..:..:..")) {
+                                    boolean isReachable = InetAddress.getByName(splitted[0]).isReachable(reachableTimeout);
+
+                                    if (!onlyReachables || isReachable) {
+                                        result.add(new ClientScanResult(splitted[0], splitted[3], splitted[5], isReachable));
+                                    }
                                 }
                             }
                         }
-                    }
-                } catch (Exception e) {
-                    Log.e(this.getClass().toString(), e.toString());
-                } finally {
-                    try {
-                        br.close();
-                    } catch (IOException e) {
-                        Log.e(this.getClass().toString(), e.getMessage());
+                    } catch (Exception e) {
+                        Log.e(this.getClass().toString(), e.toString());
+                    } finally {
+                        try {
+                            br.close();
+                        } catch (IOException e) {
+                            Log.e(this.getClass().toString(), e.getMessage());
+                        }
                     }
                 }
 
@@ -198,7 +260,6 @@ public class WifiApManager {
                 mainHandler.post(myRunnable);
             }
         };
-
         Thread mythread = new Thread(runnable);
         mythread.start();
     }

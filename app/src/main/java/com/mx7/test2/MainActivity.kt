@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        getClientList()
+       // getClientList()
 
         Handler(Looper.getMainLooper()).postDelayed(
             {
@@ -98,7 +98,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
 
-
+    // hotspot ON over api 26
     @RequiresApi(api = Build.VERSION_CODES.O)
     fun turnOnHotspot() {
 
@@ -154,6 +154,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
     }
 
 
+    // get Application IP -> not hotspot server IP
     fun getWifiApIpAddress(): String? {
         try {
             val en: Enumeration<NetworkInterface> = NetworkInterface.getNetworkInterfaces()
@@ -200,10 +201,10 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             R.id.client_btn -> {
                 getClientList()
                 // 리스트 초기화 ->>>>
-                /* val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
+                 val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
                 mainAdapter = MainAdapter(list, this)
                 recyclerView.adapter = mainAdapter
-                recyclerView.layoutManager = LinearLayoutManager(this@MainActivity) */
+                recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
                 mainAdapter.notifyDataSetChanged()
             }
         }
